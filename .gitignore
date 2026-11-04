@@ -21,6 +21,10 @@ apps/api/prisma/pgdata*/
 # 日志
 *.log
 
+# TypeScript 增量编译缓存 / 临时探测文件
+*.tsbuildinfo
+apps/web/.probe1
+
 # uploads（开发期本地音频/录音）
 apps/api/uploads/
 
