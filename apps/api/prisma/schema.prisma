@@ -1,0 +1,296 @@
+// 数据模型 —— 对应 PRD v0.2：5.1 内容模型 / 5.2 阶段状态机 / SR-01~05
+// 说明：SQLite 不支持 Prisma enum 与 Json，枚举值以 String 存储（取值见 @ladder/shared enums），
+//       JSON 结构（wrongWords / wordsFeedback）序列化为 String，切换 PostgreSQL 后可升级为原生类型。
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- 用户（SR-05 数据边界） ----------
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  // G2 每日目标自定义（默认值与 shared rules 中 DAILY_* 常量一致）
+  dailyListenMin         Int @default(60)
+  dailyDictationPassages Int @default(1)
+  dailyReadSentences     Int @default(10)
+
+  plans             Plan[]
+  listeningSessions ListeningSession[]
+  dictationAttempts DictationAttempt[]
+  wrongWords        WrongWord[]
+  confusedMarks     ConfusedMark[]
+  favorites         FavoriteSentence[]
+  dialogueSessions  DialogueSession[]
+  speakingRecords   SpeakingRecord[]
+  checkins          DailyCheckin[]
+  pushSubscriptions PushSubscription[]
+  customPacks       ContentPack[]
+  reviewLogs        ReviewLog[]
+  quizSessions      QuizSession[]
+}
+
+// ---------- P1 提醒推送：Web Push 订阅（每设备一条，endpoint 唯一） ----------
+model PushSubscription {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  endpoint         String   @unique
+  p256dh           String
+  auth             String
+  reminderEnabled  Boolean  @default(true)
+  reminderTime     String   @default("20:00") // HH:mm 本地时间
+  lastRemindedDate String?  // YYYY-MM-DD，当天只提醒一次
+  createdAt        DateTime @default(now())
+}
+
+// ---------- 内容库（FR-02：Level → Pack → Item → Sentence） ----------
+model Level {
+  code        String        @id // L1 / L2 / L3
+  name        String // 初阶 / 中阶 / 高阶
+  audience    String // 对应学段
+  description String
+  packs       ContentPack[]
+}
+
+model ContentPack {
+  id        String        @id @default(cuid())
+  levelCode String
+  level     Level         @relation(fields: [levelCode], references: [code])
+  title     String
+  tags      String // PackTag 逗号分隔：生活/新闻/学术/备考
+  ownerId   String? // 非空 = 用户自定义材料包（B1）；null = 官方内容
+  owner     User?        @relation(fields: [ownerId], references: [id])
+  items     ContentItem[]
+  plans     Plan[]
+
+  @@index([ownerId])
+}
+
+model ContentItem {
+  id               String     @id @default(cuid())
+  packId           String
+  pack             ContentPack @relation(fields: [packId], references: [id])
+  title            String
+  audioUrl         String
+  durationSec      Int
+  transcript       String // 文稿可见性由阶段控制（FR-03 盲听）
+  translation      String
+  inListeningList  Boolean    @default(true) // 泛听清单（阶段一）
+  inDictationList  Boolean    @default(true) // 听写清单（阶段二）
+  // P1-2 逐句高亮跟随：整篇音频的逐句时间轴 JSON（[{seq,startSec}] 按播放顺序）；
+  // 仅由 rebuild 脚本为官方慢/快交替材料生成，自定义材料为 null（前端不支持跟随）
+  timelineJson     String?
+  sentences        Sentence[]
+
+  listeningSessions ListeningSession[]
+  speakingRecords   SpeakingRecord[]
+}
+
+model Sentence {
+  id          String  @id @default(cuid())
+  itemId      String
+  item        ContentItem @relation(fields: [itemId], references: [id])
+  seq         Int
+  text        String
+  translation String
+  audioUrl    String // 句音频切片（3–15s，见 rules）
+
+  attempts        DictationAttempt[]
+  speakingRecords SpeakingRecord[]
+  wrongWords      WrongWord[]
+  confusedMarks   ConfusedMark[]
+  favorites       FavoriteSentence[]
+
+  @@unique([itemId, seq])
+}
+
+// ---------- 三阶段计划（FR-01 / FR-06 状态机） ----------
+model Plan {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  levelCode   String
+  packId      String
+  pack        ContentPack @relation(fields: [packId], references: [id])
+  status      String    @default("ACTIVE") // PlanStatus
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+  stages      Stage[]
+}
+
+model Stage {
+  id             String  @id @default(cuid())
+  planId         String
+  plan           Plan    @relation(fields: [planId], references: [id])
+  type           String // StageType: LISTEN / DICTATE / SPEAK
+  seq            Int // 1 / 2 / 3，严格顺序
+  status         String  @default("LOCKED") // StageStatus
+  plannedDays    Int
+  startDate      String? // YYYY-MM-DD（SR-02 本地日期语义）
+  endDate        String?
+  completionRate Float   @default(0)
+
+  @@unique([planId, seq])
+}
+
+// ---------- 学习记录 ----------
+// SR-01：有效听时长，按 用户+材料+日期 聚合（客户端 tracker 已按口径过滤）
+model ListeningSession {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  itemId       String
+  item         ContentItem @relation(fields: [itemId], references: [id])
+  date         String // YYYY-MM-DD
+  effectiveSec Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, itemId, date])
+}
+
+// FR-04：逐句听写记录
+model DictationAttempt {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  sentenceId  String
+  sentence    Sentence @relation(fields: [sentenceId], references: [id])
+  date        String
+  input       String
+  correctRate Float
+  replayCount Int      @default(0)
+  wrongWords  String   @default("[]") // JSON string[]
+  createdAt   DateTime @default(now())
+}
+
+model WrongWord {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  word        String
+  sentenceId  String
+  sentence    Sentence @relation(fields: [sentenceId], references: [id])
+  mastered    Boolean  @default(false) // P1 错词本复习：标记已掌握即移出待复习
+  // A2 SRS：下次到期时间（新词即时到期）、连续「记住了」次数
+  dueAt       DateTime @default(now())
+  reviewCount Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([userId, mastered, dueAt])
+}
+
+// I1 复习历史：每次「记住了 / 再练一次」留档，用于近 7 天复习趋势与记住率
+model ReviewLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  wrongWordId String?  // 词条可能被删除，仅作软引用
+  word        String
+  remembered  Boolean
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// P1「没听懂」标记（FR-03 盲听辅助）：听力中标记未听懂的句子，自动进复习队列
+model ConfusedMark {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  sentenceId String
+  sentence   Sentence @relation(fields: [sentenceId], references: [id])
+  resolved   Boolean  @default(false) // 复习时标记已听懂即移出队列
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, sentenceId])
+}
+
+// F2 句子收藏夹：收藏的句子（每用户每句唯一）
+model FavoriteSentence {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  sentenceId String
+  sentence   Sentence @relation(fields: [sentenceId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, sentenceId])
+}
+
+// P1 AI 情景对话：一次场景会话（阶段三解锁后开放）
+model DialogueSession {
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id])
+  scenarioKey String // 场景标识，见 dialogue 模块的场景目录
+  status      String            @default("ACTIVE") // ACTIVE | ENDED
+  turns       Int               @default(0) // 已完成对话轮数
+  createdAt   DateTime          @default(now())
+  messages    DialogueMessage[]
+}
+
+// P1 AI 情景对话：单条消息（USER 为用户录音转写，ASSISTANT 为 AI 语音回复）
+model DialogueMessage {
+  id        String          @id @default(cuid())
+  sessionId String
+  session   DialogueSession @relation(fields: [sessionId], references: [id])
+  role      String // USER | ASSISTANT
+  text      String
+  audioUrl  String? // 用户录音 / AI 合成语音（TTS 失败时为 null）
+  createdAt DateTime        @default(now())
+}
+
+// FR-05：口语记录（READ 跟读 / RETELL 复述）
+model SpeakingRecord {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  type          String // SpeakingType
+  sentenceId    String?
+  sentence      Sentence? @relation(fields: [sentenceId], references: [id])
+  itemId        String?
+  item          ContentItem? @relation(fields: [itemId], references: [id])
+  audioUrl      String
+  durationSec   Int
+  score         Float? // 第三方评分（决策 D3），null = 待评分
+  selfRating    Int? // D1 对照回放后的自评星级 1~5
+  wordsFeedback String? // JSON 词级反馈
+  date          String
+  createdAt     DateTime @default(now())
+}
+
+// SR-02：打卡（系统自动触发，无手动入口）
+model DailyCheckin {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  date      String // YYYY-MM-DD
+  stageType String // 完成的是哪个阶段的任务
+  done      Boolean @default(true)
+
+  @@unique([userId, date, stageType])
+}
+
+// ---------- P1-3 分级小测：基于内容库自动抽题的水平检验 ----------
+model QuizSession {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  levelCode    String // L1 / L2 / L3
+  questionsJson String // [{id,type,prompt,audioUrl,options,answer}]（含正确答案，不下发给前端）
+  total        Int
+  score        Int?     // 正确题数
+  passed       Boolean? // 是否达到分级阈值（默认 60%）
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+}

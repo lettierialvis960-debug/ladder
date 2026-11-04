@@ -1,0 +1,542 @@
+/* ============================================================
+   Ladder 全局样式 · 移动端优先
+   断点：< 768px 移动；≥ 768px 桌面（max-width 720 居中）
+   ============================================================ */
+
+:root {
+  --ink: #1f2430;
+  --muted: #5b6472;
+  --line: #e3e7ee;
+  --bg: #f4f6fa;
+  --card: #fff;
+  --blue: #1a56db;
+  --blue-bg: #eaf0fe;
+  --green: #067647;
+  --red: #b42318;
+
+  /* 尺寸变量：手机端收缩，桌面端舒展 */
+  --pad-x: 16px;
+  --pad-header: 12px 16px;
+  --pad-card: 16px;
+  --nav-height: 56px;
+  --fab-size: 52px;
+  --touch: 44px; /* 触摸目标最小尺寸 (WCAG 2.1) */
+  --radius: 10px;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --pad-x: 20px;
+    --pad-header: 14px 20px;
+    --pad-card: 18px 20px;
+    --nav-height: 52px;
+    --fab-size: 0; /* 桌面端隐藏浮动按钮 */
+    --radius: 12px;
+  }
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  /* iOS 禁止文字缩放导致错位 */
+  -webkit-text-size-adjust: 100%;
+  /* 禁止双击缩放，消除点击延迟（手势交互页面） */
+  touch-action: manipulation;
+  /* 禁止选中（导航栏、按钮） */
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* 表单内允许选中 */
+input, textarea { -webkit-user-select: text; user-select: text; }
+
+/* ---------- 应用外壳 ---------- */
+.app-shell {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* ---------- 顶部 Header ---------- */
+.app-header {
+  padding: var(--pad-header);
+  background: var(--blue);
+  color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* 安全区：iOS 刘海/灵动岛 */
+  padding-top: calc(env(safe-area-inset-top) + 12px);
+}
+.app-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.app-subtitle {
+  font-size: 12px;
+  /* 对比度 ≥4.5:1（原 opacity: .75 在白字上实测 4.2:1） */
+  color: #dbe4fc;
+  /* 桌面端完整显示 */
+  display: none;
+}
+.app-header-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+.app-header-btn {
+  padding: 4px 8px !important;
+  font-size: 14px !important;
+  min-height: var(--touch);
+  min-width: var(--touch);
+  border-radius: 6px !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+.app-header-btn:hover,
+.app-header-btn:active {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+@media (min-width: 768px) {
+  .app-subtitle { display: inline; }
+  .app-header { gap: 10px; }
+}
+
+/* ---------- 主内容区 ---------- */
+.app-main {
+  flex: 1;
+  padding: var(--pad-x);
+  /* 底部安全区 + 导航栏高度 */
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--nav-height) + 24px);
+}
+
+/* ---------- 底部导航 ---------- */
+.app-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 720px;
+  background: var(--card);
+  border-top: 1px solid var(--line);
+  z-index: 20;
+  /* 安全区：iOS home indicator */
+  padding-bottom: env(safe-area-inset-bottom);
+  height: calc(var(--nav-height) + env(safe-area-inset-bottom));
+}
+
+/* 移动端：icon + label + 中间浮动按钮 */
+/* 注意：不要在此覆盖 position —— .app-nav 的 fixed 必须生效，否则长页面导航会被推到文档末尾 */
+.app-nav-mobile { display: flex; align-items: stretch; }
+.app-nav-desktop { display: none; }
+
+.app-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 11px;
+  min-height: var(--nav-height);
+  transition: color 0.15s;
+}
+.app-nav-icon { font-size: 20px; line-height: 1; }
+.app-nav-label { font-size: 11px; }
+.app-nav-item.active { color: var(--blue); }
+
+/* 中间浮动训练按钮 */
+.app-nav-fab {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom) + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--fab-size);
+  height: var(--fab-size);
+  background: var(--blue);
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(26, 86, 219, 0.4);
+  border: 3px solid var(--card);
+  z-index: 21;
+}
+
+/* 桌面端：8 tab 横向铺开 */
+@media (min-width: 768px) {
+  .app-nav-mobile { display: none; }
+  .app-nav-desktop { display: flex; }
+  .app-nav-desktop a {
+    flex: 1;
+    text-align: center;
+    padding: 14px 0;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+  }
+  .app-nav-desktop a.active { color: var(--blue); font-weight: 700; }
+}
+
+/* ---------- 卡片 & 通用组件 ---------- */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--pad-card);
+  margin-bottom: 12px;
+}
+h2 { margin: 0 0 6px; font-size: 16px; }
+.muted { color: var(--muted); font-size: 13px; }
+
+.btn {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--blue);
+  color: #fff;
+  min-height: var(--touch);
+  min-width: var(--touch);
+  transition: opacity 0.15s, transform 0.1s;
+}
+.btn:active { transform: scale(0.97); }
+.btn.ghost { background: #fff; color: var(--blue); border: 1px solid var(--blue); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+.row .btn { flex-shrink: 0; }
+
+input[type="text"], input[type="email"], input[type="password"], input[type="number"], textarea {
+  width: 100%;
+  border: 1px solid #cfd6e2;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 16px; /* ≥ 16px 避免 iOS 自动缩放 */
+  font-family: inherit;
+  min-height: var(--touch);
+}
+/* 聚焦时移除 iOS 默认蓝色光晕 */
+input:focus, textarea:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px var(--blue-bg);
+}
+
+.tag {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--blue-bg);
+  color: var(--blue);
+}
+.tag.locked { background: #eef1f5; color: var(--muted); }
+.tag.done { background: #e6f4ea; color: var(--green); }
+.tag.warn { background: #fffbeb; color: #b45309; }
+
+.banner p { margin: 0 0 12px; font-size: 14px; line-height: 1.7; }
+.banner-warn { border-left: 4px solid #b45309; background: #fffbeb; padding: 10px 14px; border-radius: 6px; margin: 10px 0; }
+.banner-ok { border-left: 4px solid var(--green); background: #f0fdf4; padding: 10px 14px; border-radius: 6px; margin: 10px 0; }
+
+/* ---------- Stats 页面：图表 & KPI ---------- */
+.week-chart {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  height: 120px;
+  margin: 12px 0 4px;
+}
+@media (min-width: 768px) {
+  .week-chart { height: 140px; gap: 8px; }
+}
+.week-col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
+.week-bar { width: 100%; max-width: 40px; background: var(--blue); border-radius: 6px 6px 0 0; min-height: 3px; }
+.week-bar.zero { background: #cfe0ff; }
+.week-label { font-size: 11px; color: var(--muted); margin-top: 4px; }
+@media (min-width: 768px) { .week-label { font-size: 12px; margin-top: 6px; } }
+
+/* KPI 网格：移动端 1 列，桌面 2 列 */
+.week-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+@media (min-width: 480px) { .week-grid { grid-template-columns: repeat(2, 1fr); } }
+.week-kpi { background: var(--bg); border-radius: 8px; padding: 10px 12px; }
+.week-kpi b { font-size: 18px; color: var(--blue); display: block; }
+@media (min-width: 768px) { .week-kpi b { font-size: 20px; } }
+
+/* ---------- 成就 ---------- */
+.ach-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 10px; }
+@media (min-width: 480px) { .ach-grid { grid-template-columns: repeat(2, 1fr); } }
+/* 锁定态由徽章配色区分，不再对整行/徽章降透明度（否则文字对比度跌破 AA） */
+.ach-item { display: flex; gap: 10px; align-items: flex-start; background: var(--bg); border-radius: 8px; padding: 10px 12px; }
+.ach-item.on { background: #f0f7ff; }
+.ach-badge { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; background: #e6ecf5; color: var(--muted); }
+.ach-item.on .ach-badge { background: var(--blue); color: #fff; font-size: 18px; }
+.ach-bar { height: 4px; border-radius: 2px; background: #e6ecf5; margin: 6px 0 2px; overflow: hidden; }
+.ach-bar > div { height: 100%; background: var(--blue); border-radius: 2px; }
+
+/* ---------- 学习进度 ---------- */
+.prog-row { padding: 10px 0; border-bottom: 1px solid #eef1f6; }
+.prog-row:last-child { border-bottom: none; }
+.prog-line { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.prog-bar { flex: 1; height: 4px; border-radius: 2px; background: #e6ecf5; overflow: hidden; }
+.prog-bar > div { height: 100%; border-radius: 2px; }
+.prog-bar > .dictate { background: #12b76a; }
+.prog-bar > .speak { background: #f79009; }
+
+/* ---------- 工具类 ---------- */
+.text-center { text-align: center; }
+.mt-0 { margin-top: 0; }
+.mt-8 { margin-top: 8px; }
+.mt-16 { margin-top: 16px; }
+.mb-8 { margin-bottom: 8px; }
+
+/* ---------- 减少动画（用户偏好） ---------- */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ---------- 横屏适配 ---------- */
+@media (max-height: 500px) and (orientation: landscape) {
+  .app-header { padding: 8px 16px; }
+  .app-nav { height: 48px; padding-bottom: env(safe-area-inset-bottom); }
+  .app-main { padding-bottom: calc(48px + 16px + env(safe-area-inset-bottom)); }
+  .app-nav-fab { width: 44px; height: 44px; font-size: 18px; bottom: calc(env(safe-area-inset-bottom) + 2px); }
+}
+
+/* ============================================================
+   P2-5 深度移动端适配（页面级痛点覆盖）
+   ============================================================ */
+
+/* ---------- Dialogue 消息气泡（375px 下 max-width 收紧） ---------- */
+.card[style*="margin-left"] {
+  /* 用户气泡（右对齐蓝色）：移动端更窄 */
+  max-width: 75% !important;
+}
+@media (min-width: 768px) {
+  .card[style*="margin-left"] { max-width: 65% !important; }
+}
+
+/* ---------- Stats week-chart 移动端：7 列 gap 更紧 + bar max 更小 ---------- */
+@media (max-width: 400px) {
+  .week-chart { gap: 3px; height: 100px; }
+  .week-bar { max-width: 32px; }
+  .week-label { font-size: 10px; }
+}
+
+/* ---------- .row 手机端按钮自动撑满（flex-wrap → column 或 gap 收紧） ---------- */
+@media (max-width: 480px) {
+  .row { gap: 6px; }
+  /* row 内两个以上按钮 → 让第二个及以后自动新行 */
+  .row > .btn ~ .btn { margin-top: 6px; width: 100%; }
+}
+@media (min-width: 481px) {
+  .row { flex-wrap: nowrap; }
+}
+
+/* ---------- Dialogue dev 辅助 input min-width: 200 被 375 挤爆 ---------- */
+@media (max-width: 400px) {
+  .row input[style*="min-width"] { min-width: 0 !important; flex: 1 1 auto; }
+}
+
+/* ---------- Audio 控件（播放器）移动端宽度 ---------- */
+audio[controls],
+audio[controls] + * {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* ---------- 词卡列表小屏：单行 title + meta 允许换行 ---------- */
+@media (max-width: 400px) {
+  .tag { font-size: 11px; padding: 1px 8px; }
+  .muted { font-size: 12px; }
+}
+
+/* ---------- iOS 日期/时间选择器宽度控制 ---------- */
+select, input[type="date"], input[type="time"] {
+  font-size: 16px; /* ≥16px 防 iOS 聚焦放大 */
+  min-height: var(--touch);
+}
+
+/* ---------- 长按录音反馈：按钮按下态明显 ---------- */
+.btn:active { transform: scale(0.97); }
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ---------- Dialogue 场景列表卡片：标题 + 按钮同行，小屏按钮可能挤 ---------- */
+@media (max-width: 400px) {
+  .row[style*="justify-content: space-between"] {
+    flex-wrap: wrap;
+  }
+  .row[style*="justify-content: space-between"] > .btn {
+    margin-top: 8px;
+    width: 100%;
+  }
+}
+
+/* ---------- Today 页面三阶段任务卡：移动端间距收紧 ---------- */
+@media (max-width: 400px) {
+  .card { margin-bottom: 8px; padding: 12px; }
+}
+
+/* ---------- 设置页 Switch / 开关控件 ---------- */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 28px;
+  flex-shrink: 0;
+}
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch .slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: #cfd6e2;
+  border-radius: 28px;
+  transition: 0.2s;
+}
+.switch .slider::before {
+  content: '';
+  position: absolute;
+  width: 22px; height: 22px;
+  left: 3px; top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.switch input:checked + .slider { background: var(--blue); }
+.switch input:checked + .slider::before { transform: translateX(20px); }
+/* 原生 checkbox 视觉隐藏，焦点环改由滑块承担（键盘用户可见） */
+.switch input:focus-visible + .slider { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+/* ---------- 全局：防止 transform 在 iOS 上出现蓝色边框 ---------- */
+*:focus { outline: none; }
+
+/* ============================================================
+   P2-7 移动端收尾：触摸目标 / PWA 滚动 / 筛选栏 / 无障碍
+   ============================================================ */
+
+/* ---------- 1. 触摸目标：小 checkbox 扩到 44x44 命中区（WCAG 2.1 AA） ---------- */
+/* Review 页的 18x18 checkbox 直接命中区不足，用伪元素向外扩 13px */
+input[type="checkbox"][style*="width: 18px"] {
+  position: relative;
+}
+input[type="checkbox"][style*="width: 18px"]::before {
+  content: '';
+  position: absolute;
+  inset: -13px;
+}
+
+/* ---------- 2. PWA 滚动：防下拉刷新误触 + iOS 惯性滚动 ---------- */
+html, body {
+  /* 阻止 overscroll 冒泡到浏览器致下拉刷新（standalone 模式下尤其突兀） */
+  overscroll-behavior-y: contain;
+}
+.app-main {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* ---------- 3. 筛选栏：手机端 date / select 各占整行，避免 150px 双列挤压 ---------- */
+@media (max-width: 480px) {
+  .row > input[type="date"],
+  .row > input[type="time"] {
+    width: 100% !important;
+    flex: 1 1 100%;
+  }
+  .row > select {
+    max-width: none !important;
+    width: 100%;
+    flex: 1 1 100%;
+  }
+  /* date 之间的「至」分隔文字在整行布局下居中 */
+  .row > .muted:only-of-type { flex-basis: 100%; text-align: center; }
+}
+
+/* ---------- 4. nowrap 按钮：小屏允许换行，避免横向溢出 ---------- */
+@media (max-width: 400px) {
+  button[style*="white-space: nowrap"],
+  .btn[style*="white-space: nowrap"] {
+    white-space: normal !important;
+  }
+}
+
+/* ---------- 5. 日历热力图（repeat(7, ...)）：小屏压缩 gap ---------- */
+[style*="repeat(7"][style*="minmax"] {
+  gap: 4px !important;
+}
+
+/* ---------- 6. 触摸设备：去掉 hover 残留，保留 active 反馈 ---------- */
+@media (hover: none) {
+  .btn:hover { transform: none; }
+  .card[style*="margin-left"]:hover { transform: none; }
+}
+
+/* ---------- 7. 键盘无障碍：focus-visible 恢复可见焦点环（覆盖上面 *:focus 规则） ---------- */
+.btn:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--blue) !important;
+  outline-offset: 2px;
+}
+/* Chrome 原生 time 控件在时/分/AMPM 片段间 Tab 时宿主会短暂不匹配 :focus-visible，
+   用 :focus-within 兜底，保证片段切换期间焦点环不闪断 */
+input[type="time"]:focus-within {
+  outline: 2px solid var(--blue) !important;
+  outline-offset: 2px;
+}
+
+/* ---------- 8. iOS 输入框：防自动缩放已由 font-size 16px 覆盖，这里补齐 select ---------- */
+select {
+  font-size: 16px;
+  min-height: var(--touch);
+  max-width: 100%;
+}
+
+/* ---------- 9. 长文本：小屏强制换行，避免撑破卡片 ---------- */
+.card, .card div, .card p {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* ---------- 10. 横屏手机：卡片再收紧一档 ---------- */
+@media (max-width: 480px) {
+  .card { padding: 12px; }
+  .app-main { padding-left: 12px; padding-right: 12px; }
+}

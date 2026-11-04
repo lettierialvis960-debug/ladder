@@ -1,0 +1,22 @@
+# 可选：切换到 PostgreSQL 时使用（开发期默认 SQLite，无需启动本文件）
+# 切换步骤：
+#   1. docker compose up -d
+#   2. apps/api/.env 中 DATABASE_URL 改为 postgresql://ladder:ladder@localhost:5432/ladder
+#   3. apps/api/prisma/schema.prisma 中 provider 改为 "postgresql"
+#   4. pnpm db:migrate
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ladder-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ladder
+      POSTGRES_PASSWORD: ladder
+      POSTGRES_DB: ladder
+    ports:
+      - "5432:5432"
+    volumes:
+      - ladder-pgdata:/var/lib/postgresql/data
+
+volumes:
+  ladder-pgdata:

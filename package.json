@@ -1,0 +1,17 @@
+{
+  "name": "ladder",
+  "private": true,
+  "description": "三步听力法英语学习 App（听 → 听写 → 说）monorepo",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "dev:api": "pnpm --filter @ladder/api run dev",
+    "dev:web": "pnpm --filter @ladder/web run dev",
+    "build": "pnpm -r run build",
+    "db:migrate": "pnpm --filter @ladder/api exec prisma migrate dev",
+    "db:seed": "pnpm --filter @ladder/api exec prisma db seed",
+    "db:studio": "pnpm --filter @ladder/api exec prisma studio"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
