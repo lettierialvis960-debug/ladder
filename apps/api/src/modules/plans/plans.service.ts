@@ -40,7 +40,7 @@ export class PlansService {
     if (active) throw new ConflictException('已有进行中的计划，请先完成或调整');
 
     const today = todayLocal();
-    return this.prisma.plan.create({
+    const created = await this.prisma.plan.create({
       data: {
         userId,
         levelCode: dto.levelCode,
@@ -53,8 +53,10 @@ export class PlansService {
           ],
         },
       },
-      include: { stages: { orderBy: { seq: 'asc' } } },
+      include: { stages: { orderBy: { seq: 'asc' } }, pack: { select: { title: true } } },
     });
+    // 与 GET /plans/current 保持一致：补 packTitle 与 locked 阶段的 unlockHint
+    return this.toDto(created);
   }
 
   async current(userId: string) {
