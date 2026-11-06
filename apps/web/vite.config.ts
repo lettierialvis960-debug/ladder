@@ -33,9 +33,9 @@ export default defineConfig({
             options: { cacheName: 'audio-files', matchOptions: { ignoreSearch: true } },
           },
           // P2-11：页面 chunk 内容哈希、不可变，CacheFirst 安全；
-          // 访问过的路由离线可回退，未访问的保持按需加载
+          // 访问过的路由离线可回退，未访问的由离线页「预热」后同样可离线（见 warmRouteChunks）
           {
-            urlPattern: /\/assets\/pages\/.*\.js$/,
+            urlPattern: /\/assets\/pages\/.*\.(js|css)$/,
             handler: 'CacheFirst',
             options: {
               cacheName: 'page-chunks',
@@ -64,6 +64,10 @@ export default defineConfig({
         // SPA 路由：离线时 fallback 到 index.html（React Router 接管）
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/uploads\//],
+        // 立即接管首次访问的页面：整包下载时预热的 chunk 才会真正进入 SW 缓存，
+        // 否则首次会话（尚未被 SW 控制）下载后断网仍打不开未访问的页面
+        clientsClaim: true,
+        skipWaiting: true,
         // 注入推送事件处理（P1 提醒推送）：push / notificationclick
         importScripts: ['/push-sw.js'],
       },
@@ -72,6 +76,8 @@ export default defineConfig({
     }),
   ],
   build: {
+    // 产出 .vite/manifest.json：整包下载时据此预热各页面 chunk，使未访问过的路由离线也能打开
+    manifest: true,
     rollupOptions: {
       output: {
         // P2-10：框架代码独立成 vendor chunk，业务代码变更不会让用户重复下载 React

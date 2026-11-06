@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import type { ContentItemDto } from '@ladder/shared';
 import { api } from '../../api/client';
 import { usePlanStore } from '../../stores/plan';
-import { downloadToOffline, listCachedUrls, offlineBytes, removeOffline, apiGet } from '../../lib/offline';
+import { downloadToOffline, listCachedUrls, offlineBytes, removeOffline, apiGet, warmRouteChunks } from '../../lib/offline';
 
 /** 字节数人性化显示 */
 function fmtBytes(n: number): string {
@@ -118,6 +118,9 @@ export function OfflinePage() {
         await downloadToOffline(u);
         done++;
       }
+      // 页面 chunk 预热：未访问过的路由（统计/计划/专练等）离线也能打开
+      setProgress('预热页面…');
+      await warmRouteChunks();
       await refreshCache();
       setProgress('');
     } catch (e) {

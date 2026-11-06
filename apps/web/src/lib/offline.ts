@@ -116,3 +116,42 @@ export async function apiGet<T>(path: string): Promise<T> {
     throw e;
   }
 }
+
+/**
+ * 预热全部页面级懒加载 chunk，使「未访问过的路由」断网时也能打开。
+ * P2-11 把页面 chunk 排除出预缓存（安装流量小），改为整包下载时按需拉取一次，
+ * 由 SW 的 page-chunks（CacheFirst）缓存；构建产物 manifest 提供 chunk 清单。
+ * 返回成功写入缓存的文件数；dev 环境无 manifest 时返回 0。
+ */
+export async function warmRouteChunks(): Promise<number> {
+  if (typeof window === 'undefined') return 0;
+  // 等待 SW 就绪（clientsClaim 会立即接管当前页），否则 fetch 不经过 SW，缓存不会写入
+  if (navigator.serviceWorker) {
+    await Promise.race([
+      navigator.serviceWorker.ready.catch(() => undefined),
+      new Promise((r) => setTimeout(r, 3000)),
+    ]);
+  }
+  let manifest: Record<string, { file?: string; isDynamicEntry?: boolean }>;
+  try {
+    const res = await fetch('/.vite/manifest.json', { cache: 'no-cache' });
+    if (!res.ok) return 0;
+    manifest = (await res.json()) as typeof manifest;
+  } catch {
+    return 0;
+  }
+  const files = new Set<string>();
+  for (const [key, entry] of Object.entries(manifest)) {
+    if (entry?.isDynamicEntry && entry.file) files.add('/' + entry.file.replace(/^\/+/, ''));
+  }
+  let ok = 0;
+  await Promise.all(
+    [...files].map(async (url) => {
+      try {
+        const r = await fetch(url);
+        if (r.ok) ok++;
+      } catch { /* 单个 chunk 失败不阻塞 */ }
+    }),
+  );
+  return ok;
+}
