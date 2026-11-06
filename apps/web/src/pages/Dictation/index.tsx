@@ -137,7 +137,8 @@ export function DictationPage() {
       .then((list) => setFavoriteIds(new Set(list.map((f) => f.sentence.id))))
       .catch(() => {});
     // B：拉当日听写记录，重建「已完成」状态（保留多次尝试，只取最佳正确率）
-    api<{ sentenceId: string; correctRate: number }[]>(
+    // apiGet：与清单/句子一致的离线回退（NetworkFirst → idb meta），全失败才清空
+    apiGet<{ sentenceId: string; correctRate: number }[]>(
       `/learning/dictation/today?date=${todayLocal()}&itemId=${currentItem.id}`,
     )
       .then((rows) => setDoneRates(Object.fromEntries(rows.map((r) => [r.sentenceId, r.correctRate]))))
