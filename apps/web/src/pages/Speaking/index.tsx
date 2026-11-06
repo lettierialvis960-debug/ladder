@@ -57,6 +57,11 @@ export function SpeakingPage() {
   const [slow, setSlow] = useState(false);
   const [today, setToday] = useState<TodayTaskDto | null>(null);
   const [error, setError] = useState('');
+  /** 逐句列表的当前高亮句（跟读=当前练习句；复述=按整篇时间轴跟随） */
+  const [activeId, setActiveId] = useState('');
+  /** 复述模式默认无文稿；需要跟读高亮时可手动显示 */
+  const [showScript, setShowScript] = useState(false);
+  const modelAudioRef = useRef<HTMLAudioElement | null>(null);
   /** 材料清单加载态：区分「加载中 / 加载失败 / 确实没有材料」 */
   const [itemsLoaded, setItemsLoaded] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -83,8 +88,17 @@ export function SpeakingPage() {
     if (!plan) return;
     setItemsLoaded(false);
     setError('');
-    apiGet<ContentItemDto[]>(`/content/items?packId=${plan.packId}&list=listening`)
-      .then((list) => { setItems(list); setItemIdx(0); setItemsLoaded(true); })
+    // 计划 → 泛听清单（与阶段一一致：并入我的自定义材料，按 id 去重）
+    Promise.all([
+      apiGet<ContentItemDto[]>(`/content/items?packId=${plan.packId}&list=listening`),
+      api<ContentItemDto[]>('/content/my-items?list=listening').catch(() => [] as ContentItemDto[]),
+    ])
+      .then(([official, mine]) => {
+        const list = [...new Map([...official, ...mine].map((it) => [it.id, it])).values()];
+        setItems(list);
+        setItemIdx(0);
+        setItemsLoaded(true);
+      })
       .catch((e) => { setError(e instanceof Error ? e.message : '加载失败'); setItemsLoaded(true); });
   }, [plan, reloadKey]);
 
@@ -97,6 +111,36 @@ export function SpeakingPage() {
   }, [currentItem]);
 
   const currentSentence = sentences[sentIdx] ?? null;
+
+  /** 跟读：高亮当前练习句 */
+  useEffect(() => {
+    if (mode === 'READ' && currentSentence) setActiveId(currentSentence.id);
+  }, [mode, currentSentence]);
+
+  /** 复述：整篇播放时按时间轴推进高亮（二分找最后一个 startSec <= currentTime） */
+  const followTimeline = useCallback(() => {
+    const el = modelAudioRef.current;
+    const tl = currentItem?.timeline;
+    if (!el || !tl?.length || !sentences.length) return;
+    const t = el.currentTime;
+    let lo = 0;
+    let hi = tl.length - 1;
+    let ans = -1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (tl[mid].startSec <= t) { ans = mid; lo = mid + 1; } else { hi = mid - 1; }
+    }
+    if (ans < 0) return;
+    const s = sentences.find((x) => x.seq === tl[ans].seq);
+    if (s) setActiveId(s.id);
+  }, [currentItem, sentences]);
+
+  /** 高亮句滚动到可视区 */
+  useEffect(() => {
+    if (!activeId) return;
+    document.querySelector<HTMLElement>(`[data-sid="${activeId}"]`)
+      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [activeId]);
 
   const save = useCallback(async (blob: Blob, durationSec: number, transcript?: string) => {
     setSaving(true);
@@ -266,7 +310,9 @@ export function SpeakingPage() {
       <div className="card">
         <h2>阶段三 · 口语输出</h2>
         <p className="muted">
-          {today ? `今日跟读 ${today.progress} / ${today.goal} 句 · ` : ''}
+          {today
+            ? `今日 ${today.progress} / ${today.goal} ${({ minutes: '分钟', passages: '篇', sentences: '句' } as const)[today.unit]} · `
+            : ''}
           跟读照文本朗读；复述则在无文稿下口头复述。
         </p>
         <div className="row">
@@ -294,7 +340,16 @@ export function SpeakingPage() {
         ) : (
           <>
             <p className="muted">复述：先听整篇（无文稿），再口头复述大意。</p>
-            <AudioWithOffline src={currentItem.audioUrl} />
+            <AudioWithOffline
+              src={currentItem.audioUrl}
+              elRef={modelAudioRef}
+              onTimeUpdate={followTimeline}
+            />
+            <div className="row">
+              <button className="btn ghost" onClick={() => setShowScript((v) => !v)}>
+                {showScript ? '隐藏文稿' : '显示文稿（跟随播放高亮）'}
+              </button>
+            </div>
           </>
         )}
 
@@ -376,6 +431,39 @@ export function SpeakingPage() {
           </div>
         )}
       </div>
+
+      {(mode === 'READ' || showScript) && sentences.length > 0 && (
+        <div className="card">
+          <h2>逐句列表 · {mode === 'READ' ? '点击跳句' : '跟随播放高亮'}</h2>
+          <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+            {sentences.map((s, i) => {
+              const active = activeId === s.id;
+              return (
+                <div
+                  key={s.id}
+                  data-sid={s.id}
+                  data-active={active ? '1' : undefined}
+                  onClick={() => {
+                    if (mode === 'READ') { setSentIdx(i); setLast(null); setRating(0); }
+                  }}
+                  style={{
+                    padding: '6px 8px',
+                    borderRadius: 6,
+                    cursor: mode === 'READ' ? 'pointer' : 'default',
+                    background: active ? '#e8f0fe' : undefined,
+                    borderLeft: active ? '3px solid #1a73e8' : '3px solid transparent',
+                    fontSize: 14,
+                    marginBottom: 2,
+                  }}
+                >
+                  <span className="muted">{s.seq}. </span>
+                  {s.text}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

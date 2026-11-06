@@ -15,9 +15,12 @@ export const useAuthStore = create<AuthState>()(
       setToken: (token) => set({ token }),
       logout: () => {
         set({ token: null });
-        // 登出同时清空离线元数据缓存，防换账号串数据（动态 import 避免与 client.ts 循环依赖）
+        // 登出同时清空离线元数据缓存 + SW API 数据缓存，防换账号串数据
+        // （动态 import 避免与 client.ts 循环依赖）
         void import('../lib/offline')
-          .then((m) => m.clearMeta())
+          .then(async (m) => {
+            await Promise.all([m.clearMeta(), m.clearApiDataCache()]);
+          })
           .catch(() => {});
       },
     }),

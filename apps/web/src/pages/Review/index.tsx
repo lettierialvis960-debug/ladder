@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { FavoriteSentenceDto, WrongWordDto, WrongWordDueDto } from '@ladder/shared';
-import { api } from '../../api/client';
+import { api, API_BASE } from '../../api/client';
 import { useAuthStore } from '../../stores/auth';
 import { AudioWithOffline } from '../../components/AudioWithOffline';
 
@@ -59,7 +59,7 @@ function localDate(iso: string): string {
 
 /** F1/H1 下载 CSV：fetch 取 Blob 以保留登录态 */
 async function downloadCsv(path: string, filename: string, token: string | null): Promise<void> {
-  const res = await fetch(`/api${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  const res = await fetch(`${API_BASE}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
   if (!res.ok) throw new Error(`导出失败（${res.status}）`);
   const url = URL.createObjectURL(await res.blob());
   const link = document.createElement('a');

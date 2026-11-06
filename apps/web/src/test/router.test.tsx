@@ -13,12 +13,18 @@ vi.mock('../lib/reminder', () => ({ initReminderScheduler: vi.fn() }));
 
 describe('router.tsx 路由级代码分割（P2-10 首屏性能）', () => {
   it('除 index（今日页）外的页面全部通过 lazy + import() 按需加载', () => {
-    const lazyCount = (routerSource.match(/lazy\(\(\) => import\('\.\/pages\//g) || []).length;
+    const lazyCount = (routerSource.match(/lazyPage\(\(\) => import\('\.\/pages\//g) || []).length;
     expect(lazyCount).toBe(15);
 
     // 回归：任何页面重新变回静态 import 都会让该页代码回到首屏 chunk
     const staticPageImports = [...routerSource.matchAll(/import\s*\{[^}]*\}\s*from\s*'\.\/pages\/(\w+)'/g)].map((m) => m[1]);
     expect(staticPageImports).toEqual(['Today']);
+  });
+
+  it('每个懒加载路由都包在 RouteErrorBoundary 内（P2-14 离线兜底）', () => {
+    const lazyRouteBody = routerSource.match(/function lazyRoute[\s\S]*?\n}/)?.[0] ?? '';
+    expect(lazyRouteBody).toContain('<RouteErrorBoundary>');
+    expect(lazyRouteBody.indexOf('<RouteErrorBoundary>')).toBeLessThan(lazyRouteBody.indexOf('<Suspense'));
   });
 
   it('懒加载路由可正常渲染：/plan-complete 触发按需加载并显示页面内容', async () => {

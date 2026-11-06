@@ -75,6 +75,8 @@ export function DictationPage() {
   const fullSentences = useRef<SentenceDto[]>([]);
   /** 提交中：防止双击重复写入听写记录，且避免未保存就切到下一句 */
   const [submitting, setSubmitting] = useState(false);
+  /** B：当日已完成句子（句 id → 最佳正确率），刷新后仍展示完成态 */
+  const [doneRates, setDoneRates] = useState<Record<string, number>>({});
 
   useEffect(() => { if (!loaded) refresh().catch(() => {}); }, [loaded, refresh]);
 
@@ -134,6 +136,12 @@ export function DictationPage() {
     api<{ sentence: { id: string } }[]>('/learning/favorites')
       .then((list) => setFavoriteIds(new Set(list.map((f) => f.sentence.id))))
       .catch(() => {});
+    // B：拉当日听写记录，重建「已完成」状态（保留多次尝试，只取最佳正确率）
+    api<{ sentenceId: string; correctRate: number }[]>(
+      `/learning/dictation/today?date=${todayLocal()}&itemId=${currentItem.id}`,
+    )
+      .then((rows) => setDoneRates(Object.fromEntries(rows.map((r) => [r.sentenceId, r.correctRate]))))
+      .catch(() => setDoneRates({}));
   }, [currentItem]);
 
   // J1 内容搜索：250ms 防抖，限定当前计划包 + 本人材料、听写清单
@@ -199,6 +207,10 @@ export function DictationPage() {
         correctRate: graded.correctRate,
         wrongWords: graded.wrongWords,
       }]);
+      setDoneRates((m) => ({
+        ...m,
+        [currentSentence.id]: Math.max(m[currentSentence.id] ?? 0, graded.correctRate),
+      }));
       // P2-2：该句已听写，移出优先队列（与服务端「当日已听写不再优先」口径一致）
       setPriority((p) => ({ ...p, sentenceIds: p.sentenceIds.filter((id) => id !== currentSentence.id) }));
       refreshToday();
@@ -285,7 +297,9 @@ export function DictationPage() {
       <div className="card">
         <h2>阶段二 · 逐句听写</h2>
         <p className="muted">
-          {today ? `今日进度 ${today.progress} / ${today.goal} 篇 · ` : ''}
+          {today
+            ? `今日进度 ${today.progress} / ${today.goal} ${({ minutes: '分钟', passages: '篇', sentences: '句' } as const)[today.unit]} · `
+            : ''}
           整篇预听一遍，再逐句键入并批改（错词自动进错词本）。
         </p>
         {items.length > 1 && (
@@ -348,6 +362,11 @@ export function DictationPage() {
       {phase === 'prelisten' && (
         <div className="card">
           <h2>{currentItem.title}</h2>
+          {Object.keys(doneRates).length > 0 && (
+            <p className="muted">
+              今日已完成 {Math.min(sentences.length, Object.keys(doneRates).length)} / {sentences.length} 句（重复提交会保留每次记录，此处显示最佳成绩）
+            </p>
+          )}
           {sentences.some((s) => priority.sentenceIds.includes(s.id)) && (
             <p><span className="tag warn">没听懂优先</span> <span className="muted">本篇含你标记过没听懂的句子，已排在前面。</span></p>
           )}
@@ -362,6 +381,9 @@ export function DictationPage() {
         <div className="card">
           <h2>
             第 {sentIdx + 1} / {sentences.length} 句
+            {doneRates[currentSentence.id] !== undefined && (
+              <> <span className="tag">今日已完成 · 最佳 {Math.round(doneRates[currentSentence.id] * 100)}%</span></>
+            )}
             {priority.sentenceIds.includes(currentSentence.id) && (
               <> <span className="tag warn">没听懂优先</span></>
             )}

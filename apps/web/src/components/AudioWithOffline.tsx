@@ -10,11 +10,14 @@ export function AudioWithOffline(props: {
   src: string;
   showOfflineBadge?: boolean;
   style?: React.CSSProperties;
+  /** 外部读取 audio 元素（时间轴跟随需要 currentTime） */
+  elRef?: React.MutableRefObject<HTMLAudioElement | null>;
   onPlay?: () => void;
   onPause?: () => void;
   onEnded?: () => void;
+  onTimeUpdate?: () => void;
 }) {
-  const { src, showOfflineBadge = true, style, onPlay, onPause, onEnded } = props;
+  const { src, showOfflineBadge = true, style, elRef, onPlay, onPause, onEnded, onTimeUpdate } = props;
   const [playable, setPlayable] = useState<string>(src);
   const [cached, setCached] = useState(false);
 
@@ -32,6 +35,7 @@ export function AudioWithOffline(props: {
         <span className="muted" style={{ fontSize: 12 }}>● 离线已缓存</span>
       )}
       <audio
+        ref={elRef}
         src={playable}
         controls
         preload="metadata"
@@ -39,6 +43,7 @@ export function AudioWithOffline(props: {
         onPlay={onPlay}
         onPause={onPause}
         onEnded={onEnded}
+        onTimeUpdate={onTimeUpdate}
       />
     </div>
   );

@@ -439,6 +439,23 @@ export class LearningService {
   }
 
   /**
+   * 当日听写完成情况：按句取历史最佳正确率。
+   * 保留每次 attempt（复盘价值），前端据此展示「已完成 / 最佳成绩」，刷新后不丢。
+   */
+  async dictationToday(userId: string, date: string, itemId?: string) {
+    const rows = await this.prisma.dictationAttempt.findMany({
+      where: { userId, date, ...(itemId ? { sentence: { itemId } } : {}) },
+      select: { sentenceId: true, correctRate: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    const best = new Map<string, number>();
+    for (const row of rows) {
+      best.set(row.sentenceId, Math.max(best.get(row.sentenceId) ?? 0, row.correctRate));
+    }
+    return Array.from(best, ([sentenceId, correctRate]) => ({ sentenceId, correctRate }));
+  }
+
+  /**
    * A1 弱项专项训练：聚合三类弱项信号，按权重排序返回今日待练句。
    * 没听懂 +5；错词 +2 且每多一个错词 +0.5（上限 +1.5）；听写低正确率 +3 且越低越高。
    * 当日已听写过的句子排除，避免重复劳动。

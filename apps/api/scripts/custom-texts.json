@@ -1,0 +1,36 @@
+{
+  "b248fc93-f147-4cdb-833c-8b3c282f32df": {
+    "title": "Hello everyone.…",
+    "sentences": [
+      "Hello everyone.",
+      "Today I want to talk about the weather.",
+      "It is a beautiful sunny day in the park.",
+      "Many people are walking their dogs and having picnics.",
+      "Children are playing on the swings and slides under the old oak tree."
+    ],
+    "translations": [
+      "大家好。",
+      "今天我想聊聊天气。",
+      "公园里阳光明媚，天气很好。",
+      "许多人在遛狗、野餐。",
+      "孩子们在老橡树下荡秋千、滑滑梯。"
+    ]
+  },
+  "f3e2deb6-f806-4624-8755-fdd416bd1882": {
+    "title": "Hello everyone.…（短版）",
+    "sentences": [
+      "Hello everyone.",
+      "Today I want to talk about the weather.",
+      "It is a beautiful sunny day in the park.",
+      "Many people are walking their dogs and having picnics.",
+      "Children are playing on the swings and the old tree."
+    ],
+    "translations": [
+      "大家好。",
+      "今天我想聊聊天气。",
+      "公园里阳光明媚，天气很好。",
+      "许多人在遛狗、野餐。",
+      "孩子们在秋千上和那棵老树旁玩耍。"
+    ]
+  }
+}

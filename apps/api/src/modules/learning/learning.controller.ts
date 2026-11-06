@@ -184,6 +184,12 @@ export class LearningController {
     return this.learning.dictationPriority(userId, packId, date);
   }
 
+  /** 当日听写完成情况（按句最佳正确率），供阶段二展示「已完成」状态 */
+  @Get('dictation/today')
+  dictationToday(@CurrentUser() userId: string, @Query('date') date: string, @Query('itemId') itemId?: string) {
+    return this.learning.dictationToday(userId, date, itemId);
+  }
+
   /** A1：弱项专项训练队列（没听懂 + 错词 + 近 14 天听写低正确率，排除今日已练） */
   @Get('weak-drill')
   weakDrill(@CurrentUser() userId: string, @Query('limit') limit?: string) {

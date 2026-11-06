@@ -42,8 +42,24 @@ export default defineConfig({
               expiration: { maxEntries: 60, maxAgeSeconds: 30 * 24 * 60 * 60 },
             },
           },
-          // API 优先网络，失败回退最近成功的响应（消息/场景这类可接受稍旧数据）
-          { urlPattern: /\/api\/(auth\/me|dialogue\/scenarios|push\/vapid-public-key)$/, handler: 'NetworkFirst' },
+          // P2-15：所有 GET 类 API 走 NetworkFirst，离线回退最近一次成功响应。
+          // 覆盖 stats/learning/content/plans/push/dialogue 等只读接口，离线时页面能展示旧数据而非报错。
+          // 排除：非确定性 GET（quiz/generate 每次生成新题）、大文件导出（stats/export*）。
+          // 写操作（POST/PUT/DELETE/PATCH）通过 method: 'GET' 自动排除，不缓存。
+          // 注意：生产构建 API 基地址为 http://localhost:3000/api（与 SW 所在 127.0.0.1:5173 跨域）。
+          // workbox 的 RegExpRoute 对跨域请求要求正则从 URL 首字符开始匹配（result.index === 0），
+          // 因此正则需锚定 scheme://host，不能只写 /\/api\/…/。
+          {
+            urlPattern: /^https?:\/\/[^/]+\/api\/(?!quiz\/generate|stats\/export)/,
+            method: 'GET',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-data',
+              networkTimeoutSeconds: 4,
+              expiration: { maxEntries: 120, maxAgeSeconds: 7 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
         // SPA 路由：离线时 fallback 到 index.html（React Router 接管）
         navigateFallback: '/index.html',

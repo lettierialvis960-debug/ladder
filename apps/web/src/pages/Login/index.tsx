@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE } from '../../api/client';
 import { useAuthStore } from '../../stores/auth';
 
 /**
@@ -20,7 +21,7 @@ export function LoginPage() {
     setError('');
     setBusy(true);
     try {
-      const res = await fetch(`/api/auth/${mode}`, {
+      const res = await fetch(`${API_BASE}/auth/${mode}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),

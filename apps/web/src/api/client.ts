@@ -1,7 +1,8 @@
 import { useAuthStore } from '../stores/auth';
 
-// dev 下由 Vite 代理 /api → 3000；生产构建（npx serve 等静态托管）直连后端完整地址
-const BASE = import.meta.env.DEV ? '/api' : 'http://localhost:3000/api';
+// dev 下由 Vite 代理 /api → 3000；生产构建（npx serve 等静态托管）直连后端完整地址。
+// 所有需要裸 fetch（登录/导出 Blob）的地方也复用该基地址，避免相对路径在无代理环境下失效。
+export const API_BASE = import.meta.env.DEV ? '/api' : 'http://localhost:3000/api';
 
 /** 提前续期窗口：access token 剩余有效期 < 24h 时自动 refresh（而非等真过期才被动续） */
 const PROACTIVE_REFRESH_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -31,7 +32,7 @@ async function tryRefresh(): Promise<string | null> {
   if (!token) return null;
   refreshPromise = (async () => {
     try {
-      const res = await fetch(`${BASE}/auth/refresh`, {
+      const res = await fetch(`${API_BASE}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token }),
@@ -68,7 +69,7 @@ async function ensureFresh(token: string | null): Promise<string | null> {
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (path === '/auth/refresh' || path === '/auth/login' || path === '/auth/register') {
     const token = useAuthStore.getState().token;
-    const res = await fetch(`${BASE}${path}`, {
+    const res = await fetch(`${API_BASE}${path}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -85,7 +86,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   }
 
   let token = await ensureFresh(useAuthStore.getState().token);
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -97,7 +98,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     // 被动续期兜底：token 真过期后再试一次 refresh
     const newToken = await tryRefresh();
     if (newToken) {
-      const retry = await fetch(`${BASE}${path}`, {
+      const retry = await fetch(`${API_BASE}${path}`, {
         ...options,
         headers: {
           'Content-Type': 'application/json',
@@ -132,7 +133,7 @@ export async function uploadFile(path: string, file: Blob): Promise<{ url: strin
   let token = await ensureFresh(useAuthStore.getState().token);
   const form = new FormData();
   form.append('file', file);
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
@@ -140,7 +141,7 @@ export async function uploadFile(path: string, file: Blob): Promise<{ url: strin
   if (res.status === 401) {
     const newToken = await tryRefresh();
     if (newToken) {
-      const retry = await fetch(`${BASE}${path}`, {
+      const retry = await fetch(`${API_BASE}${path}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${newToken}` },
         body: form,

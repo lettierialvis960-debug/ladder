@@ -66,4 +66,34 @@ describe('PWA 预缓存策略（P2-11）', () => {
     expect(configSource).toContain("cacheName: 'page-chunks'");
     expect(configSource).toContain('maxEntries');
   });
+
+  it('GET 类 API 走 NetworkFirst 离线回退，排除非确定性与导出接口（P2-15）', () => {
+    // 存在 api-data 缓存条目
+    expect(configSource).toContain("cacheName: 'api-data'");
+
+    // 提取 api-data 规则的 urlPattern（紧随其后的是 method: 'GET'，唯一定位；
+    // 用 tempered 匹配防止跨到其它 urlPattern 规则）
+    const m = configSource.match(/urlPattern:\s*(\/(?:(?!urlPattern:)[\s\S])*\/),\s*method:\s*'GET'/);
+    expect(m).toBeTruthy();
+    const pattern = new Function(`return ${m![1]}`)() as RegExp;
+
+    // 常规 GET 接口命中缓存规则（生产跨域 URL 与 dev 同源 URL 都要从首字符匹配）
+    expect(pattern.test('http://localhost:3000/api/stats/summary')).toBe(true);
+    expect(pattern.test('http://127.0.0.1:5173/api/learning/favorites')).toBe(true);
+    expect(pattern.test('https://app.ladder.local/api/content/packs')).toBe(true);
+    expect(pattern.test('http://localhost:3000/api/auth/me')).toBe(true);
+
+    // 非确定性 GET（quiz/generate 每次生成新题）不缓存
+    expect(pattern.test('http://localhost:3000/api/quiz/generate')).toBe(false);
+    // 大文件导出不缓存
+    expect(pattern.test('http://localhost:3000/api/stats/export')).toBe(false);
+    expect(pattern.test('http://localhost:3000/api/stats/export/csv')).toBe(false);
+
+    // 限定 GET：写操作（POST/PUT/DELETE）由 method: 'GET' 排除，规则中显式声明
+    // method: 'GET' 与 handler: 'NetworkFirst' 在本配置中仅属于 api-data 规则
+    expect(configSource).toContain("method: 'GET'");
+    expect(configSource).toContain("handler: 'NetworkFirst'");
+    expect(configSource).toContain('networkTimeoutSeconds');
+    expect(configSource).toContain('maxAgeSeconds');
+  });
 });

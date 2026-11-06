@@ -18,6 +18,12 @@ apps/api/dev.db*
 # PGlite 本地数据库目录（含运行时状态，体积大；含排障遗留的 pgdata.broken-*）
 apps/api/prisma/pgdata*/
 
+# 本地数据根目录（PGlite 数据库 / 上传音频 / 备份）
+data/
+
+# 一次性排障/探测脚本
+apps/api/scripts/tmp-*
+
 # 日志
 *.log
 

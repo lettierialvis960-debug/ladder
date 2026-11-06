@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { AchievementsDto, ActivityDto, CheckinDayDto, ImportResultDto, PlanSummaryDto, TodayTaskDto, WeeklyReportDto } from '@ladder/shared';
-import { api } from '../../api/client';
+import { api, API_BASE } from '../../api/client';
 import { useAuthStore } from '../../stores/auth';
 import { CheckinCalendar } from '../../components/CheckinCalendar';
 import { RecoveryBanner } from '../../components/RecoveryBanner';
@@ -39,7 +39,7 @@ function ExportCard() {
   const download = async (path: string, filename: string) => {
     setBusy(path); setError('');
     try {
-      const res = await fetch(`/api${path}`, {
+      const res = await fetch(`${API_BASE}${path}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error(`导出失败（${res.status}）`);

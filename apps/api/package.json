@@ -6,6 +6,10 @@
     "build": "nest build",
     "dev": "nest start --watch",
     "start": "node dist/main.js",
+    "api:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-api.ps1",
+    "db:start": "set \"PG_DATA_DIR=E:\\dev\\ladder\\data\\pgdata\"&& node pg-server.mjs",
+    "db:recover": "node scripts/db-recover.mjs",
+    "db:backup": "node scripts/db-backup.mjs",
     "storage:migrate": "node scripts/migrate-uploads-to-s3.mjs",
     "storage:migrate:dry": "node scripts/migrate-uploads-to-s3.mjs --dry-run"
   },

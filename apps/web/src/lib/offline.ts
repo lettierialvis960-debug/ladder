@@ -94,6 +94,16 @@ export async function clearMeta(): Promise<void> {
   for (const k of all) await del(k, metaStore);
 }
 
+/**
+ * 清空 SW 运行时缓存中的 API 数据（登出/换账号时调用，防串号）。
+ * P2-15 之后 GET API 响应会被 SW 缓存在 'api-data'，换账号必须清掉，
+ * 否则离线时会展示上一个用户的统计/学习数据。
+ */
+export async function clearApiDataCache(): Promise<void> {
+  if (typeof caches === 'undefined') return;
+  await caches.delete('api-data');
+}
+
 /** GET 请求 + 离线兜底。仅用于幂等 GET 接口（清单/句子/计划）。 */
 export async function apiGet<T>(path: string): Promise<T> {
   try {
