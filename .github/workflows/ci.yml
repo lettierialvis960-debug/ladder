@@ -28,6 +28,10 @@ jobs:
       - name: web 类型检查
         run: pnpm --filter @ladder/web exec tsc -b
 
+      # pnpm 默认不跑依赖的 postinstall，Prisma Client 需显式生成（不需要数据库）
+      - name: 生成 Prisma Client
+        run: pnpm --filter @ladder/api exec prisma generate
+
       - name: api 类型检查
         run: pnpm --filter @ladder/api exec tsc -p tsconfig.json --noEmit
 
