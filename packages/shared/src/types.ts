@@ -64,6 +64,8 @@ export interface SentenceDto {
 export interface SentenceTimelinePoint {
   seq: number;
   startSec: number;
+  /** 该次出现的结束秒（可选；缺失时前端以下一点 startSec 或音频总时长兜底） */
+  endSec?: number;
 }
 
 /** I2 内容搜索：材料标题命中 + 句子文本/译文命中 */

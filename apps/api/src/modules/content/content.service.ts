@@ -23,16 +23,19 @@ export function splitSentences(text: string): string[] {
  * P1-2：解析整篇音频逐句时间轴（rebuild 脚本写入的 JSON）。
  * 缺失/损坏返回 undefined → 前端降级为不跟随高亮。
  */
-function parseTimeline(json: string | null): { seq: number; startSec: number }[] | undefined {
+function parseTimeline(json: string | null): { seq: number; startSec: number; endSec?: number }[] | undefined {
   if (!json) return undefined;
   try {
     const arr: unknown = JSON.parse(json);
     if (!Array.isArray(arr)) return undefined;
     const points = arr.filter(
-      (p): p is { seq: number; startSec: number } =>
+      (p): p is { seq: number; startSec: number; endSec?: number } =>
         !!p && typeof p === 'object' && typeof (p as any).seq === 'number' && typeof (p as any).startSec === 'number',
     );
-    return points.length ? points : undefined;
+    // 透传 endSec（三篇长文已带），非法值丢弃
+    return points.length
+      ? points.map((p) => (typeof (p as any).endSec === 'number' ? p : { seq: p.seq, startSec: p.startSec }))
+      : undefined;
   } catch {
     return undefined;
   }

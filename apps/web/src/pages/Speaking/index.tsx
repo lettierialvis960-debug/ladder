@@ -117,7 +117,7 @@ export function SpeakingPage() {
     if (mode === 'READ' && currentSentence) setActiveId(currentSentence.id);
   }, [mode, currentSentence]);
 
-  /** 复述：整篇播放时按时间轴推进高亮（二分找最后一个 startSec <= currentTime） */
+  /** 复述：整篇播放时按时间轴推进高亮（二分找最后一个 startSec <= currentTime；越过 endSec 的留白/静音取消高亮） */
   const followTimeline = useCallback(() => {
     const el = modelAudioRef.current;
     const tl = currentItem?.timeline;
@@ -130,8 +130,12 @@ export function SpeakingPage() {
       const mid = (lo + hi) >> 1;
       if (tl[mid].startSec <= t) { ans = mid; lo = mid + 1; } else { hi = mid - 1; }
     }
-    if (ans < 0) return;
-    const s = sentences.find((x) => x.seq === tl[ans].seq);
+    if (ans < 0) { setActiveId(''); return; }
+    const pt = tl[ans];
+    const next = tl[ans + 1];
+    const end = pt.endSec ?? next?.startSec ?? (Number.isFinite(el.duration) ? el.duration : Infinity);
+    if (t > end + 0.15) { setActiveId(''); return; }
+    const s = sentences.find((x) => x.seq === pt.seq);
     if (s) setActiveId(s.id);
   }, [currentItem, sentences]);
 
@@ -344,6 +348,7 @@ export function SpeakingPage() {
               src={currentItem.audioUrl}
               elRef={modelAudioRef}
               onTimeUpdate={followTimeline}
+              onEnded={() => setActiveId('')}
             />
             <div className="row">
               <button className="btn ghost" onClick={() => setShowScript((v) => !v)}>

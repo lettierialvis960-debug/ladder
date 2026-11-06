@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # shared 是 web/api 的类型与常量来源，先构建产出 dist/*.d.ts
+      - run: pnpm --filter @ladder/shared run build
+
+      - name: web 类型检查
+        run: pnpm --filter @ladder/web exec tsc -b
+
+      - name: api 类型检查
+        run: pnpm --filter @ladder/api exec tsc -p tsconfig.json --noEmit
+
+      - name: web 单元测试
+        run: pnpm --filter @ladder/web run test

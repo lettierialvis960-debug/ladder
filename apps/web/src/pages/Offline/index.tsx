@@ -23,6 +23,8 @@ export function OfflinePage() {
   const { plan, loaded, refresh } = usePlanStore();
 
   const [items, setItems] = useState<ContentItemDto[]>([]);
+  /** 我的自定义材料（听力+听写清单并入，按 id 去重），与官方包一起整包下载 */
+  const [mineItems, setMineItems] = useState<ContentItemDto[]>([]);
   const [cachedSet, setCachedSet] = useState<Set<string>>(new Set());
   const [totalBytes, setTotalBytes] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -52,12 +54,23 @@ export function OfflinePage() {
     apiGet<ContentItemDto[]>(`/content/items?packId=${plan.packId}`)
       .then(setItems)
       .catch((e) => setError(e instanceof Error ? e.message : '加载失败'));
+    // 自定义材料失败不阻塞官方包
+    Promise.all([
+      apiGet<ContentItemDto[]>('/content/my-items?list=listening').catch(() => [] as ContentItemDto[]),
+      apiGet<ContentItemDto[]>('/content/my-items?list=dictation').catch(() => [] as ContentItemDto[]),
+    ]).then(([a, b]) => setMineItems([...new Map([...a, ...b].map((it) => [it.id, it])).values()]));
   }, [plan]);
 
-  /** 当前包内应下载的全部音频 URL（整篇 + 句切片）；句子经 apiGet 拉取，顺带把元数据写进离线缓存 */
+  /** 全部待缓存材料：官方包 + 我的材料（按 id 去重，自定义包可能同时属于计划） */
+  const allItems = (() => {
+    const m = new Map([...items, ...mineItems].map((it) => [it.id, it]));
+    return [...m.values()];
+  })();
+
+  /** 应下载的全部音频 URL（整篇 + 句切片）；句子经 apiGet 拉取，顺带把元数据写进离线缓存 */
   const collectUrls = useCallback(async (): Promise<string[]> => {
     const urls = new Set<string>();
-    for (const it of items) {
+    for (const it of allItems) {
       urls.add(it.audioUrl);
       try {
         const sents = await apiGet<{ audioUrl: string }[]>(`/content/items/${it.id}/sentences`);
@@ -65,7 +78,7 @@ export function OfflinePage() {
       } catch { /* 单篇失败不阻塞整包 */ }
     }
     return [...urls];
-  }, [items]);
+  }, [allItems]);
 
   /** 预热元数据：让清单/句子/计划在断网时也能从 IndexedDB 读到（与音频一起构成完整离线包） */
   const warmMetadata = useCallback(async () => {
@@ -79,14 +92,14 @@ export function OfflinePage() {
       '/content/my-items?list=dictation',
     ];
     for (const p of paths) await apiGet(p).catch(() => {});
-    for (const it of items) {
+    for (const it of allItems) {
       await apiGet(`/content/items/${it.id}/sentences`).catch(() => {});
     }
-  }, [plan, items]);
+  }, [plan, allItems]);
 
   const packState: PackState = (() => {
-    if (!items.length) return 'none';
-    const itemUrls = items.map((i) => i.audioUrl);
+    if (!allItems.length) return 'none';
+    const itemUrls = allItems.map((i) => i.audioUrl);
     const cachedItems = itemUrls.filter((u) => cachedSet.has(u)).length;
     if (cachedItems === 0) return 'none';
     return cachedItems === itemUrls.length ? 'all' : 'partial';
@@ -149,16 +162,16 @@ export function OfflinePage() {
       <div className="card">
         <h2>离线下载</h2>
         <p className="muted">
-          把当前内容包的全部音频（整篇 + 句切片）缓存到本机，离线也能练。已缓存材料在播放页会标注「离线」。
+          把当前内容包与「我的材料」的全部音频（整篇 + 句切片）缓存到本机，离线也能练。已缓存材料在播放页会标注「离线」。
         </p>
         <p className="muted">
-          当前包 {items.length} 篇 ·
+          官方包 {items.length} 篇{mineItems.length > 0 && ` + 我的材料 ${mineItems.length} 篇`} ·
           {packState === 'all' ? ' 已全部缓存' : packState === 'partial' ? ' 部分已缓存' : ' 未缓存'}
           {totalBytes > 0 && ` · 本机离线占用约 ${fmtBytes(totalBytes)}`}
         </p>
         <div className="row">
-          <button className="btn" disabled={busy || !items.length || packState === 'all'} onClick={downloadAll}>
-            {packState === 'all' ? '已全部下载' : '下载整个内容包'}
+          <button className="btn" disabled={busy || !allItems.length || packState === 'all'} onClick={downloadAll}>
+            {packState === 'all' ? '已全部下载' : '下载全部音频'}
           </button>
           {packState !== 'none' && (
             <button className="btn ghost" disabled={busy} onClick={removeAll}>删除离线缓存</button>
