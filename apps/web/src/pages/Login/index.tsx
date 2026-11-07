@@ -11,6 +11,8 @@ import { useAuthStore } from '../../stores/auth';
 export function LoginPage() {
   const nav = useNavigate();
   const setToken = useAuthStore((s) => s.setToken);
+  const notice = useAuthStore((s) => s.notice);
+  const clearNotice = useAuthStore((s) => s.clearNotice);
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,6 +43,9 @@ export function LoginPage() {
     <div className="card">
       <h2>{mode === 'login' ? '登录' : '注册'}</h2>
       <p className="muted">三步听力法：先听够量，再写得出，最后说得出。学习数据归属账号（SR-05）。</p>
+      {(error || notice) && (
+        <p style={{ color: '#b42318' }} role="alert">{error || notice}</p>
+      )}
       <div style={{ margin: '10px 0' }}>
         <input
           type="email"

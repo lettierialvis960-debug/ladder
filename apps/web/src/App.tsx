@@ -52,7 +52,7 @@ export function App() {
         <span className="app-subtitle">三步听力法</span>
         <div className="app-header-actions">
           <NavLink to="/settings" className="btn ghost app-header-btn" title="设置">⚙️</NavLink>
-          <button className="btn ghost app-header-btn" onClick={logout} title="退出">⎋</button>
+          <button className="btn ghost app-header-btn" onClick={() => logout()} title="退出">⎋</button>
         </div>
       </header>
 

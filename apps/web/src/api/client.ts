@@ -7,6 +7,9 @@ export const API_BASE = import.meta.env.DEV ? '/api' : 'http://localhost:3000/ap
 /** 提前续期窗口：access token 剩余有效期 < 24h 时自动 refresh（而非等真过期才被动续） */
 const PROACTIVE_REFRESH_WINDOW_MS = 24 * 60 * 60 * 1000;
 
+/** 续期也失败时写入登录页的提示文案 */
+export const EXPIRED_NOTICE = '登录已过期，请重新登录';
+
 /** 模块级去重：并发请求共享同一个 refresh Promise，不会打爆端点 */
 let refreshPromise: Promise<string | null> | null = null;
 
@@ -107,7 +110,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
         },
       });
       if (retry.status === 401) {
-        useAuthStore.getState().logout();
+        useAuthStore.getState().logout(EXPIRED_NOTICE);
         throw new Error('登录已过期');
       }
       if (!retry.ok) {
@@ -117,7 +120,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
       const text = await retry.text();
       return (text ? JSON.parse(text) : null) as T;
     }
-    useAuthStore.getState().logout();
+    useAuthStore.getState().logout(EXPIRED_NOTICE);
     throw new Error('登录已过期');
   }
   if (!res.ok) {
@@ -148,7 +151,7 @@ export async function uploadFile(path: string, file: Blob): Promise<{ url: strin
       });
       if (retry.ok) return retry.json();
     }
-    useAuthStore.getState().logout();
+    useAuthStore.getState().logout(EXPIRED_NOTICE);
     throw new Error('上传失败：登录已过期');
   }
   if (!res.ok) throw new Error('上传失败');
