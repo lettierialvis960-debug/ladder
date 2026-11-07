@@ -167,6 +167,8 @@ process.on('beforeExit', () => {
 
 // Windows 下 taskkill 不带 /F 无法给控制台程序发送可被捕获的信号，
 // 额外支持向 stdin 写入 shutdown 以触发同一优雅关闭流程（便于脚本化验证）
+// 分离启动（如 WMI/计划任务）时 stdin 不可用，读它会抛错并使进程秒退，需吞掉错误
+process.stdin.on('error', () => {});
 process.stdin.on('data', (chunk) => {
   if (chunk.toString().trim().toLowerCase() === 'shutdown') shutdown('stdin');
 });
