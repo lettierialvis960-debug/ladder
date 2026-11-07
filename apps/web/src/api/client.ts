@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/auth';
 export const API_BASE = import.meta.env.DEV ? '/api' : 'http://localhost:3000/api';
 
 /** 提前续期窗口：access token 剩余有效期 < 24h 时自动 refresh（而非等真过期才被动续） */
-const PROACTIVE_REFRESH_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const PROACTIVE_REFRESH_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /** 续期也失败时写入登录页的提示文案 */
 export const EXPIRED_NOTICE = '登录已过期，请重新登录';
@@ -13,7 +13,7 @@ export const EXPIRED_NOTICE = '登录已过期，请重新登录';
 /** 模块级去重：并发请求共享同一个 refresh Promise，不会打爆端点 */
 let refreshPromise: Promise<string | null> | null = null;
 
-function decodeExp(token: string): number | null {
+export function decodeExp(token: string): number | null {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
@@ -29,7 +29,7 @@ function decodeExp(token: string): number | null {
   }
 }
 
-async function tryRefresh(): Promise<string | null> {
+export async function tryRefresh(): Promise<string | null> {
   if (refreshPromise) return refreshPromise;
   const token = useAuthStore.getState().token;
   if (!token) return null;
